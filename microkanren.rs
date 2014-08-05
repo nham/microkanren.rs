@@ -13,17 +13,22 @@ type FuncSym = char;
 
 // a term is either a variable
 // or a function symbol + n terms, where n is the arity of the function
-enum Term {
+enum Term<T> {
     Variable(Var),
-    Compound(FuncSym, uint, Vec<Term>),
+    Other(T),
+    Compound(Vec<T>),
 }
 
-impl Term {
+impl<T> Term<T> {
     fn is_var(&self) -> bool {
         match *self {
             Variable(_) => true,
             _ => false,
         }
+    }
+
+    fn is_compound(&self) -> bool {
+        !self.is_var()
     }
 
     fn unwrap_var(&self) -> Var {
@@ -53,8 +58,10 @@ impl State {
         if !t.is_var() {
             t
         } else {
-            let new = self.bindings.find(&t.unwrap_var()).unwrap();
-            self.get_binding(new)
+            match self.bindings.find(&t.unwrap_var()) {
+                None => t,
+                Some(term) => self.get_binding(term),
+            }
         }
     }
 
@@ -62,21 +69,28 @@ impl State {
     fn add_binding(&mut self, v: Var, t: Term) {
         self.bindings.insert(v, t);
     }
-}
 
-fn eq<I: Iterator<State>, G: Goal<I>>(a: Term, b: Term) -> G {
+    fn unify(&self, a: &Term, b: &Term) -> Option<State> {
+        let a = self.get_binding(a);
+        let p = self.get_binding(b);
 
-}
-
-struct UnifyGoal {
-    a: Term,
-    b: Term,
-}
-
-impl<I> Goal<I> for UnifyGoal {
-    fn apply(state: State) -> I {
-        let s = unify(self.a, self.b, state
-
+        if a.is_var() && b.is_var() && a == b {
+            Some(self.clone())
+        } else if a.is_var() {
+            let mut s = self.clone();
+            s.add_binding(a.clone(), b.clone());
+            Some(s)
+        } else if b.is_var() {
+            let mut s = self.clone();
+            s.add_binding(b.clone(), a.clone());
+            Some(s)
+        } else if a.is_compound() && b.is_compound() {
+            // attempt to unify each
+        } else if a == b {
+            Some(self.clone())
+        } else {
+            None
+        }
     }
 }
 
